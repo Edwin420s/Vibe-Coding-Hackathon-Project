@@ -1,0 +1,17 @@
+let markers = [];
+
+function clearMarkers() {
+  markers.forEach(marker => marker.setMap(null));
+  markers = [];
+}
+
+function findResources() {
+  // ...
+  clearMarkers();
+  resources.forEach(resource => {
+    const marker = new google.maps.Marker({ script.src = "https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap";
+});
+    markers.push(marker);
+  });
+  // ...
+}
