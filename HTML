@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Community Resource Finder</title>
 
-  <!-- No Tailwind CDN included since we have custom CSS -->
   <style>
     /* Body and container */
     body {
@@ -198,123 +197,127 @@
     const defaultCoords = { lat: -1.2921, lng: 36.8219 }; // Nairobi, Kenya
     let markers = [];
 
-    // Clear all markers from the map
     function clearMarkers() {
       markers.forEach(marker => marker.setMap(null));
       markers = [];
     }
 
-    // Dynamically load Google Maps JS API
     function loadMapScript() {
       const script = document.createElement("script");
-      // REPLACE "YOUR_API_KEY" with your actual Google Maps API key here:
-      script.src = "https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap";
-      script.async = true;
+      script.src =
+        "https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap&libraries=places";
       script.defer = true;
-      script.onerror = () => {
-        document.getElementById("mapError").classList.remove("hidden");
-      };
       document.head.appendChild(script);
     }
 
-    // Initialize map after Google Maps script loads
     function initMap() {
-      try {
-        map = new google.maps.Map(document.getElementById("map"), {
-          center: defaultCoords,
-          zoom: 12,
-        });
-      } catch (error) {
-        document.getElementById("mapError").classList.remove("hidden");
-        console.error("Map initialization error:", error);
-      }
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: defaultCoords,
+        zoom: 12,
+      });
     }
 
-    // Load Google Maps script on window load
-    window.onload = loadMapScript;
+    // Simulated resources data
+    const resources = [
+      {
+        name: "Nairobi Food Bank",
+        lat: -1.2921,
+        lng: 36.8219,
+        type: "Food",
+        info: "Provides free meals and groceries.",
+      },
+      {
+        name: "Hope Shelter",
+        lat: -1.2950,
+        lng: 36.8100,
+        type: "Shelter",
+        info: "Safe shelter for homeless individuals.",
+      },
+      {
+        name: "HealthCare Clinic",
+        lat: -1.3000,
+        lng: 36.8200,
+        type: "Health",
+        info: "Affordable medical checkups and consultations.",
+      },
+    ];
 
-    // Find nearby resources (mocked)
     function findResources() {
-      const locationInput = document.getElementById("location").value.trim();
-      const findBtn = document.getElementById("findBtn");
+      const locationInput = document.getElementById("location");
       const locationError = document.getElementById("locationError");
+      locationError.classList.add("hidden");
 
-      if (!locationInput) {
+      if (!locationInput.value.trim()) {
         locationError.classList.remove("hidden");
         return;
       }
-      locationError.classList.add("hidden");
-      findBtn.disabled = true;
 
-      // Clear previous markers before adding new ones
-      clearMarkers();
+      // Geocode location
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: locationInput.value.trim() }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          const loc = results[0].geometry.location;
+          map.setCenter(loc);
+          map.setZoom(13);
 
-      if (map) {
-        // For demo, center the map at default coords always
-        map.setCenter(defaultCoords);
+          clearMarkers();
 
-        // Mock resource locations
-        const resources = [
-          { name: "Nairobi Food Bank", lat: -1.29, lng: 36.82 },
-          { name: "City Shelter", lat: -1.295, lng: 36.825 },
-          { name: "Health Clinic", lat: -1.3, lng: 36.83 },
-        ];
-
-        resources.forEach(resource => {
-          const marker = new google.maps.Marker({
-            position: { lat: resource.lat, lng: resource.lng },
-            map: map,
-            title: resource.name,
-            icon: {
-              url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-            },
+          // Show markers nearby within approx 10km radius (simulated)
+          resources.forEach((res) => {
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(
+              loc,
+              new google.maps.LatLng(res.lat, res.lng)
+            );
+            if (distance < 10000) {
+              const marker = new google.maps.Marker({
+                position: { lat: res.lat, lng: res.lng },
+                map: map,
+                title: res.name,
+              });
+              const infowindow = new google.maps.InfoWindow({
+                content: `<strong>${res.name}</strong><br />${res.info}<br /><em>Type: ${res.type}</em>`,
+              });
+              marker.addListener("click", () => {
+                infowindow.open(map, marker);
+              });
+              markers.push(marker);
+            }
           });
-          markers.push(marker);
-        });
-      } else {
-        document.getElementById("mapError").classList.remove("hidden");
-      }
-
-      findBtn.disabled = false;
+        } else {
+          locationError.textContent = "Location not found. Try again.";
+          locationError.classList.remove("hidden");
+        }
+      });
     }
 
-    // Mock AI suggestion function
     function getAISuggestion() {
-      const needs = document.getElementById("needs").value.trim();
-      const suggestBtn = document.getElementById("suggestBtn");
+      const needsInput = document.getElementById("needs");
       const needsError = document.getElementById("needsError");
-      const suggestionElement = document.getElementById("ai-suggestion");
+      const suggestionOutput = document.getElementById("ai-suggestion");
+      needsError.classList.add("hidden");
+      suggestionOutput.textContent = "";
 
-      if (!needs) {
+      const text = needsInput.value.trim();
+      if (!text) {
         needsError.classList.remove("hidden");
         return;
       }
-      needsError.classList.add("hidden");
-      suggestBtn.disabled = true;
-      suggestionElement.textContent = "Processing...";
 
-      setTimeout(() => {
-        const suggestions = {
-          food: "Visit the nearest food bank. Check 'Nairobi Food Bank' on the map.",
-          shelter: "Seek shelter at 'City Shelter' on the map.",
-          health: "Visit 'Health Clinic' on the map for medical assistance.",
-          default: "Try specifying 'food', 'shelter', or 'health' for better suggestions.",
-        };
+      // Simple keyword matching for demo AI suggestions
+      let suggestion = "Sorry, no suggestions available.";
+      if (/food|hungry|meal|eat/i.test(text)) {
+        suggestion = "Try Nairobi Food Bank for free meals and groceries.";
+      } else if (/shelter|homeless|house|sleep/i.test(text)) {
+        suggestion = "Hope Shelter offers safe accommodation for those in need.";
+      } else if (/health|clinic|doctor|medical/i.test(text)) {
+        suggestion = "HealthCare Clinic provides affordable medical checkups.";
+      }
 
-        const lowerNeeds = needs.toLowerCase();
-        const suggestion =
-          lowerNeeds.includes("food")
-            ? suggestions.food
-            : lowerNeeds.includes("shelter")
-            ? suggestions.shelter
-            : lowerNeeds.includes("health")
-            ? suggestions.health
-            : suggestions.default;
-
-        suggestionElement.textContent = `AI Suggestion: ${suggestion}`;
-        suggestBtn.disabled = false;
-      }, 1000);
+      suggestionOutput.textContent = suggestion;
     }
+
+    // Load the map script with your API key
+    loadMapScript();
   </script>
 </body>
 </html>
