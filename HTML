@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Resource Finder</title>
+
+  <!-- No Tailwind CDN included since we have custom CSS -->
+  <style>
+    /* Body and container */
+    body {
+      background-color: #0b1a3f !important; /* deep dark navy blue */
+      color: #dbeafe; /* light text */
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 1rem;
+      background-color: transparent !important;
+      color: inherit;
+    }
+
+    /* Headings */
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #bfdbfe; /* lighter blue */
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    /* Paragraphs */
+    p {
+      text-align: center;
+      color: #93c5fd; /* light blue */
+      margin-bottom: 1.5rem;
+    }
+
+    /* Labels */
+    label {
+      display: block;
+      color: #bfdbfe; /* light blue */
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Inputs */
+    input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #3b82f6; /* bright blue border */
+      border-radius: 0.375rem;
+      font-size: 1rem;
+      outline: none;
+      background-color: #0b1a3f !important; /* deep dark navy */
+      color: #dbeafe !important; /* light text */
+      transition: box-shadow 0.3s ease;
+    }
+
+    input[type="text"]::placeholder {
+      color: #93c5fd;
+    }
+
+    input[type="text"]:focus {
+      box-shadow: 0 0 0 2px #60a5fa;
+      border-color: #60a5fa;
+    }
+
+    /* Buttons */
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      color: #fff;
+      transition: background-color 0.3s ease;
+    }
+
+    #findBtn {
+      background-color: #2563eb; /* blue-700 */
+    }
+
+    #findBtn:hover:not(:disabled) {
+      background-color: #3b82f6; /* blue-500 */
+    }
+
+    #findBtn:disabled {
+      background-color: #9ca3af; /* gray */
+      cursor: not-allowed;
+    }
+
+    #suggestBtn {
+      background-color: #16a34a; /* green-600 */
+    }
+
+    #suggestBtn:hover:not(:disabled) {
+      background-color: #22c55e; /* green-500 */
+    }
+
+    #suggestBtn:disabled {
+      background-color: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    /* Error messages */
+    .text-red-500 {
+      color: #f87171;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Map container */
+    #map {
+      width: 100%;
+      height: 24rem;
+      border: 1px solid #3b82f6;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+      background-color: #0b1a3f !important;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      color: #93c5fd;
+      font-size: 0.875rem;
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Community Resource Finder</h1>
+    <p>Locate nearby resources and get AI-powered suggestions.</p>
+
+    <!-- Location Input -->
+    <div>
+      <label for="location">Enter Your Location:</label>
+      <input
+        type="text"
+        id="location"
+        placeholder="e.g., Nairobi, Kenya"
+        autocomplete="off"
+      />
+      <button
+        onclick="findResources()"
+        id="findBtn"
+      >
+        Find Resources
+      </button>
+      <p id="locationError" class="text-red-500 hidden">Please enter a valid location.</p>
+    </div>
+
+    <!-- AI Suggestion Input -->
+    <div style="margin-top: 2rem;">
+      <label for="needs">Describe Your Needs:</label>
+      <input
+        type="text"
+        id="needs"
+        placeholder="e.g., I need food assistance"
+        autocomplete="off"
+      />
+      <button
+        onclick="getAISuggestion()"
+        id="suggestBtn"
+      >
+        Get AI Suggestion
+      </button>
+      <p id="ai-suggestion" style="margin-top: 0.5rem; color: #dbeafe;"></p>
+      <p id="needsError" class="text-red-500 hidden">Please describe your needs.</p>
+    </div>
+
+    <!-- Map Display -->
+    <div id="map"></div>
+    <p id="mapError" class="text-red-500 text-center hidden">
+      Failed to load map. Check your API key or enable the Maps JavaScript API.
+    </p>
+
+    <!-- Footer -->
+    <footer>
+      Made for Vibe Coding Hackathon 2025 | #1MillionDevs4Africa
+    </footer>
+  </div>
+
+  <script>
+    let map;
+    const defaultCoords = { lat: -1.2921, lng: 36.8219 }; // Nairobi, Kenya
+    let markers = [];
+
+    // Clear all markers from the map
+    function clearMarkers() {
+      markers.forEach(marker => marker.setMap(null));
+      markers = [];
+    }
+
+    // Dynamically load Google Maps JS API
+    function loadMapScript() {
+      const script = document.createElement("script");
+      // REPLACE "YOUR_API_KEY" with your actual Google Maps API key here:
+      script.src = "https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap";
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => {
+        document.getElementById("mapError").classList.remove("hidden");
+      };
+      document.head.appendChild(script);
+    }
+
+    // Initialize map after Google Maps script loads
+    function initMap() {
+      try {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: defaultCoords,
+          zoom: 12,
+        });
+      } catch (error) {
+        document.getElementById("mapError").classList.remove("hidden");
+        console.error("Map initialization error:", error);
+      }
+    }
+
+    // Load Google Maps script on window load
+    window.onload = loadMapScript;
+
+    // Find nearby resources (mocked)
+    function findResources() {
+      const locationInput = document.getElementById("location").value.trim();
+      const findBtn = document.getElementById("findBtn");
+      const locationError = document.getElementById("locationError");
+
+      if (!locationInput) {
+        locationError.classList.remove("hidden");
+        return;
+      }
+      locationError.classList.add("hidden");
+      findBtn.disabled = true;
+
+      // Clear previous markers before adding new ones
+      clearMarkers();
+
+      if (map) {
+        // For demo, center the map at default coords always
+        map.setCenter(defaultCoords);
+
+        // Mock resource locations
+        const resources = [
+          { name: "Nairobi Food Bank", lat: -1.29, lng: 36.82 },
+          { name: "City Shelter", lat: -1.295, lng: 36.825 },
+          { name: "Health Clinic", lat: -1.3, lng: 36.83 },
+        ];
+
+        resources.forEach(resource => {
+          const marker = new google.maps.Marker({
+            position: { lat: resource.lat, lng: resource.lng },
+            map: map,
+            title: resource.name,
+            icon: {
+              url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            },
+          });
+          markers.push(marker);
+        });
+      } else {
+        document.getElementById("mapError").classList.remove("hidden");
+      }
+
+      findBtn.disabled = false;
+    }
+
+    // Mock AI suggestion function
+    function getAISuggestion() {
+      const needs = document.getElementById("needs").value.trim();
+      const suggestBtn = document.getElementById("suggestBtn");
+      const needsError = document.getElementById("needsError");
+      const suggestionElement = document.getElementById("ai-suggestion");
+
+      if (!needs) {
+        needsError.classList.remove("hidden");
+        return;
+      }
+      needsError.classList.add("hidden");
+      suggestBtn.disabled = true;
+      suggestionElement.textContent = "Processing...";
+
+      setTimeout(() => {
+        const suggestions = {
+          food: "Visit the nearest food bank. Check 'Nairobi Food Bank' on the map.",
+          shelter: "Seek shelter at 'City Shelter' on the map.",
+          health: "Visit 'Health Clinic' on the map for medical assistance.",
+          default: "Try specifying 'food', 'shelter', or 'health' for better suggestions.",
+        };
+
+        const lowerNeeds = needs.toLowerCase();
+        const suggestion =
+          lowerNeeds.includes("food")
+            ? suggestions.food
+            : lowerNeeds.includes("shelter")
+            ? suggestions.shelter
+            : lowerNeeds.includes("health")
+            ? suggestions.health
+            : suggestions.default;
+
+        suggestionElement.textContent = `AI Suggestion: ${suggestion}`;
+        suggestBtn.disabled = false;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
